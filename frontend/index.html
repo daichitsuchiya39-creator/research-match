@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResearchMatch — 研究者×企業マッチング</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; color: #222; min-height: 100vh; }
+
+    /* Header */
+    header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+    header .badge { background: #3b5bdb; color: #fff; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+
+    /* Main layout */
+    main { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
+
+    /* Search area */
+    .search-section { background: #fff; border-radius: 16px; padding: 28px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 32px; }
+    .search-label { font-size: 0.85rem; font-weight: 600; color: #555; margin-bottom: 10px; }
+    .search-hint { font-size: 0.8rem; color: #999; margin-bottom: 10px; }
+    .search-row { display: flex; gap: 10px; align-items: flex-end; }
+    textarea {
+      flex: 1; padding: 12px 16px; border: 1.5px solid #e0e0e0; border-radius: 10px;
+      font-size: 0.95rem; resize: vertical; min-height: 80px; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { outline: none; border-color: #3b5bdb; }
+    .search-btn {
+      padding: 12px 28px; background: #3b5bdb; color: #fff; border: none;
+      border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: background 0.2s, transform 0.1s; white-space: nowrap;
+    }
+    .search-btn:hover { background: #2f4ac7; }
+    .search-btn:active { transform: scale(0.98); }
+    .search-btn:disabled { background: #a0aec0; cursor: not-allowed; }
+    .examples { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .example-chip {
+      font-size: 0.78rem; padding: 4px 12px; background: #f0f4ff; color: #3b5bdb;
+      border-radius: 20px; cursor: pointer; border: 1px solid #c5d0fa;
+      transition: background 0.15s;
+    }
+    .example-chip:hover { background: #dce3ff; }
+
+    /* Result meta */
+    .result-meta { font-size: 0.85rem; color: #666; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .result-count { font-weight: 700; color: #1a1a2e; }
+
+    /* Cards */
+    .card {
+      background: #fff; border-radius: 14px; padding: 22px 24px;
+      margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid transparent; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .card:hover { border-color: #c5d0fa; box-shadow: 0 4px 16px rgba(59,91,219,0.1); }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; }
+    .card-name { font-size: 1.05rem; font-weight: 700; }
+    .score-badge {
+      flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+    }
+    .score-high { background: #e8f5e9; color: #2e7d32; }
+    .score-mid  { background: #fff8e1; color: #f57f17; }
+    .score-low  { background: #f5f5f5; color: #757575; }
+    .affiliation { color: #666; font-size: 0.85rem; margin-bottom: 12px; }
+    .affiliation strong { color: #444; }
+    .abstract { font-size: 0.9rem; line-height: 1.7; color: #444; margin-bottom: 14px; }
+    .keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
+    .keyword { background: #f4f4f6; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; color: #555; }
+
+    /* Match reason */
+    .match-reason {
+      margin-top: 14px; padding: 12px 16px;
+      background: #f5f7ff; border-left: 3px solid #3b5bdb;
+      border-radius: 6px; font-size: 0.88rem; line-height: 1.7; color: #333;
+    }
+    .match-reason-label {
+      font-size: 0.72rem; font-weight: 700; color: #3b5bdb;
+      text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    /* States */
+    .state { text-align: center; padding: 60px 20px; color: #999; }
+    .state-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .state-text { font-size: 0.95rem; }
+    .loading-dots { display: inline-flex; gap: 4px; }
+    .loading-dots span {
+      width: 8px; height: 8px; background: #3b5bdb; border-radius: 50%;
+      animation: blink 1s infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      header { padding: 16px; }
+      .search-row { flex-direction: column; }
+      .search-btn { width: 100%; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ResearchMatch</h1>
+    <span class="badge">MVP</span>
+  </header>
+
+  <main>
+    <div class="search-section">
+      <div class="search-label">企業ニーズ・課題を入力</div>
+      <div class="search-hint">Cmd+Enter でも検索できます</div>
+      <div class="search-row">
+        <textarea id="query" placeholder="例: AIを活用した製造業の品質管理システムを開発したい"></textarea>
+        <button class="search-btn" id="search-btn" onclick="search()">検索</button>
+      </div>
+      <div class="examples">
+        <span class="example-chip" onclick="fillExample(this)">製造業の品質管理にAIを活用したい</span>
+        <span class="example-chip" onclick="fillExample(this)">再生可能エネルギーの蓄電技術を研究したい</span>
+        <span class="example-chip" onclick="fillExample(this)">農業の自動化・スマート農業の実現</span>
+        <span class="example-chip" onclick="fillExample(this)">消費者行動データを活用したマーケティング</span>
+      </div>
+    </div>
+
+    <div id="results">
+      <div class="state">
+        <div class="state-icon">🔬</div>
+        <div class="state-text">企業ニーズを入力して検索してください</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const API = window.location.hostname === "localhost"
+      ? "http://localhost:3001"
+      : "https://your-api.railway.app"; // デプロイ後にRailwayのURLに変更
+
+    function fillExample(el) {
+      document.getElementById("query").value = el.textContent;
+      search();
+    }
+
+    function scoreClass(score) {
+      if (score >= 0.5) return "score-high";
+      if (score >= 0.3) return "score-mid";
+      return "score-low";
+    }
+
+    function renderCard(m) {
+      return `
+        <div class="card">
+          <div class="card-header">
+            <div class="card-name">${m.name}</div>
+            <span class="score-badge ${scoreClass(m.score)}">類似度 ${m.score}</span>
+          </div>
+          <div class="affiliation"><strong>${m.affiliation}</strong> &nbsp;|&nbsp; ${m.field}</div>
+          <div class="abstract">${m.abstract}</div>
+          <div class="keywords">
+            ${m.keywords.map(k => `<span class="keyword">${k}</span>`).join("")}
+          </div>
+          ${m.match_reason ? `
+          <div class="match-reason">
+            <div class="match-reason-label">✦ AIマッチング分析</div>
+            ${m.match_reason}
+          </div>` : ""}
+        </div>`;
+    }
+
+    async function search() {
+      const query = document.getElementById("query").value.trim();
+      if (!query) return;
+
+      const resultsEl = document.getElementById("results");
+      const btn = document.getElementById("search-btn");
+      btn.disabled = true;
+      btn.textContent = "検索中...";
+
+      resultsEl.innerHTML = `
+        <div class="state">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+          <div class="state-text" style="margin-top:16px">研究者を検索しています...</div>
+        </div>`;
+
+      try {
+        const res = await fetch(`${API}/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, limit: 5 }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!data.matches || !data.matches.length) {
+          resultsEl.innerHTML = `
+            <div class="state">
+              <div class="state-icon">😔</div>
+              <div class="state-text">該当する研究者が見つかりませんでした</div>
+            </div>`;
+          return;
+        }
+
+        resultsEl.innerHTML = `
+          <div class="result-meta">
+            <span class="result-count">${data.matches.length}件</span>の研究者が見つかりました
+          </div>
+          ${data.matches.map(renderCard).join("")}`;
+
+      } catch (e) {
+        resultsEl.innerHTML = `
+          <div class="state">
+            <div class="state-icon">⚠️</div>
+            <div class="state-text">APIサーバーに接続できませんでした<br><small>http://localhost:3001 が起動しているか確認してください</small></div>
+          </div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "検索";
+      }
+    }
+
+    document.getElementById("query").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) search();
+    });
+  </script>
+</body>
+</html>

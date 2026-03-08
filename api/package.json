@@ -1,0 +1,22 @@
+{
+  "name": "research-match-api",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@qdrant/js-client-rest": "^1.13.0",
+    "dotenv": "^16.4.7",
+    "hono": "^4.7.4",
+    "openai": "^4.87.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
