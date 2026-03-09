@@ -81,6 +81,17 @@
       display: flex; align-items: center; gap: 4px;
     }
 
+    /* Inquiry button */
+    .card-footer { margin-top: 16px; display: flex; justify-content: flex-end; }
+    .inquiry-btn {
+      display: inline-block; padding: 8px 18px;
+      background: #fff; color: #3b5bdb; border: 1.5px solid #3b5bdb;
+      border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+      text-decoration: none; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .inquiry-btn:hover { background: #3b5bdb; color: #fff; }
+
     /* States */
     .state { text-align: center; padding: 60px 20px; color: #999; }
     .state-icon { font-size: 2.5rem; margin-bottom: 12px; }
@@ -152,23 +163,37 @@
       return "score-low";
     }
 
-    function renderCard(m) {
+    function renderCard(m, query) {
+      const field = m.field_ja || m.field;
+      const abstract = m.abstract_ja || m.abstract;
+      const keywords = m.keywords_ja || m.keywords;
+      const inquirySubject = encodeURIComponent(`【ResearchMatch】${m.name}先生へのお問い合わせ`);
+      const inquiryBody = encodeURIComponent(
+        `研究者: ${m.name}（${m.affiliation}）\n` +
+        `検索した課題: ${query}\n\n` +
+        `---\nお問い合わせ内容をご記入ください:\n\n`
+      );
       return `
         <div class="card">
           <div class="card-header">
             <div class="card-name">${m.name}</div>
             <span class="score-badge ${scoreClass(m.score)}">類似度 ${m.score}</span>
           </div>
-          <div class="affiliation"><strong>${m.affiliation}</strong> &nbsp;|&nbsp; ${m.field}</div>
-          <div class="abstract">${m.abstract}</div>
+          <div class="affiliation"><strong>${m.affiliation}</strong> &nbsp;|&nbsp; ${field}</div>
+          <div class="abstract">${abstract}</div>
           <div class="keywords">
-            ${m.keywords.map(k => `<span class="keyword">${k}</span>`).join("")}
+            ${keywords.map(k => `<span class="keyword">${k}</span>`).join("")}
           </div>
           ${m.match_reason ? `
           <div class="match-reason">
             <div class="match-reason-label">✦ AIマッチング分析</div>
             ${m.match_reason}
           </div>` : ""}
+          <div class="card-footer">
+            <a class="inquiry-btn" href="mailto:contact@chiapuru.com?subject=${inquirySubject}&body=${inquiryBody}">
+              この研究者について問い合わせる →
+            </a>
+          </div>
         </div>`;
     }
 
@@ -210,7 +235,7 @@
           <div class="result-meta">
             <span class="result-count">${data.matches.length}件</span>の研究者が見つかりました
           </div>
-          ${data.matches.map(renderCard).join("")}`;
+          ${data.matches.map(m => renderCard(m, query)).join("")}`;
 
       } catch (e) {
         resultsEl.innerHTML = `
