@@ -1,0 +1,23 @@
+{
+  "name": "research-match",
+  "version": "1.0.0",
+  "description": "企業の課題・ニーズをテキスト入力すると、セマンティック検索でマッチする研究者を返すシステム。",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daichitsuchiya39-creator/research-match.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/daichitsuchiya39-creator/research-match/issues"
+  },
+  "homepage": "https://github.com/daichitsuchiya39-creator/research-match#readme",
+  "dependencies": {
+    "fast-xml-parser": "^5.5.5"
+  }
+}

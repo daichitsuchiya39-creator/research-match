@@ -11,12 +11,17 @@ export interface Researcher {
   field: string;
   abstract: string; // 研究概要
   keywords: string[];
+  source?: "openalex" | "kakenhi";
 }
 
-// OpenAlex ID (例: "A1234567890") を安定した正整数に変換
-function stableId(researcherId: string): number {
+// 研究者IDを安定した正整数に変換（ソース別に名前空間を分離）
+function stableId(researcherId: string, source: "openalex" | "kakenhi" = "openalex"): number {
+  const KAKENHI_OFFSET = 2_000_000_000; // 研究者番号は最大8桁 → 衝突しない
   const num = parseInt(researcherId.replace(/\D/g, ""), 10);
-  return isNaN(num) ? Math.abs(researcherId.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) || 1 : num;
+  if (isNaN(num)) {
+    return Math.abs(researcherId.split("").reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) || 1;
+  }
+  return source === "kakenhi" ? KAKENHI_OFFSET + num : num;
 }
 
 // POST /ingest — 研究者データを投入（バッチ重複を防ぐため安定IDを使用）
@@ -33,7 +38,7 @@ app.post("/", async (c) => {
         const text = `${r.name} ${r.field} ${r.abstract} ${r.keywords.join(" ")}`;
         const vector = await embed(text);
         return {
-          id: stableId(r.id),
+          id: stableId(r.id, r.source ?? "openalex"),
           vector,
           payload: {
             researcher_id: r.id,
@@ -42,6 +47,7 @@ app.post("/", async (c) => {
             field: r.field,
             abstract: r.abstract,
             keywords: r.keywords,
+            source: r.source ?? "openalex",
           },
         };
       })

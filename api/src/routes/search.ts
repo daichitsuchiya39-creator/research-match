@@ -27,10 +27,11 @@ async function generateMatchReason(query: string, researcher: Record<string, unk
 
 // POST /search — 企業ニーズで研究者を検索
 app.post("/", async (c) => {
-  const { query, limit = 5, explain = true } = await c.req.json<{
+  const { query, limit = 5, explain = true, source } = await c.req.json<{
     query: string;
     limit?: number;
     explain?: boolean;
+    source?: "openalex" | "kakenhi";
   }>();
 
   if (!query) return c.json({ error: "query is required" }, 400);
@@ -41,6 +42,9 @@ app.post("/", async (c) => {
     vector,
     limit,
     with_payload: true,
+    ...(source
+      ? { filter: { must: [{ key: "source", match: { value: source } }] } }
+      : {}),
   });
 
   const matches = await Promise.all(

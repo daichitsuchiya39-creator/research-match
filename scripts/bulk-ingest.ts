@@ -91,45 +91,64 @@ async function translateTopics(englishNames: string[]): Promise<Record<string, s
   const uniqueNames = [...new Set(englishNames)];
   console.log(`\n🌐 トピック名を日本語訳中 (${uniqueNames.length}件)...`);
 
-  // 100件ずつバッチ処理（プロンプトが長くなりすぎないように）
-  const TRANSLATE_BATCH = 100;
+  // 50件ずつバッチ処理（ペイロードを小さくしてECONNRESETを防ぐ）
+  const TRANSLATE_BATCH = 50;
   const translationMap: Record<string, string> = {};
 
   for (let i = 0; i < uniqueNames.length; i += TRANSLATE_BATCH) {
     const batch = uniqueNames.slice(i, i + TRANSLATE_BATCH);
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "あなたは学術用語の翻訳者です。英語の研究分野名を簡潔な日本語に翻訳してください。" +
-              "JSON形式で {\"英語名\": \"日本語名\"} として返してください。余分なテキストは不要です。",
-          },
-          {
-            role: "user",
-            content: JSON.stringify(batch),
-          },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-      }),
-    });
+    const batchNum = Math.floor(i / TRANSLATE_BATCH) + 1;
+    const totalBatches = Math.ceil(uniqueNames.length / TRANSLATE_BATCH);
 
-    if (!res.ok) {
-      console.warn(`  翻訳APIエラー: ${res.status}`);
-      continue;
+    // 最大3回リトライ
+    let success = false;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "あなたは学術用語の翻訳者です。英語の研究分野名を簡潔な日本語に翻訳してください。" +
+                  "JSON形式で {\"英語名\": \"日本語名\"} として返してください。余分なテキストは不要です。",
+              },
+              {
+                role: "user",
+                content: JSON.stringify(batch),
+              },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.2,
+          }),
+        });
+
+        if (!res.ok) {
+          console.warn(`  バッチ ${batchNum}/${totalBatches} APIエラー: ${res.status} (試行${attempt})`);
+          await new Promise((r) => setTimeout(r, 2000 * attempt));
+          continue;
+        }
+        const data = (await res.json()) as { choices: Array<{ message: { content: string } }> };
+        const parsed = JSON.parse(data.choices[0].message.content ?? "{}") as Record<string, string>;
+        Object.assign(translationMap, parsed);
+        console.log(`  翻訳中: ${batchNum}/${totalBatches} バッチ完了 (${Object.keys(translationMap).length}件)`);
+        success = true;
+        break;
+      } catch (e) {
+        console.warn(`\n  バッチ ${batchNum}/${totalBatches} 失敗 (試行${attempt}): ${(e as Error).message}`);
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 3000 * attempt));
+      }
     }
-    const data = (await res.json()) as { choices: Array<{ message: { content: string } }> };
-    const parsed = JSON.parse(data.choices[0].message.content ?? "{}") as Record<string, string>;
-    Object.assign(translationMap, parsed);
+    if (!success) console.warn(`\n  バッチ ${batchNum}/${totalBatches} をスキップ（3回失敗）`);
+    await new Promise((r) => setTimeout(r, 500));
   }
+  console.log(`  ✓ 合計 ${Object.keys(translationMap).length}件翻訳完了`);
 
   console.log(`  ✓ ${Object.keys(translationMap).length}件翻訳完了`);
   return translationMap;
@@ -232,27 +251,40 @@ const allResearchers = allAuthors.map((a) => toResearcher(a, translationMap));
 
 console.log("\n投入中...\n");
 
-const BATCH_SIZE = 100;
+const BATCH_SIZE = 50;
 let totalIngested = 0;
 
 for (let i = 0; i < allResearchers.length; i += BATCH_SIZE) {
   const batch = allResearchers.slice(i, i + BATCH_SIZE);
+  const batchLabel = `バッチ ${i + 1}-${i + batch.length}`;
 
-  const res = await fetch(`${API_URL}/ingest`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(batch),
-  });
+  let success = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(`${API_URL}/ingest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(batch),
+      });
 
-  if (!res.ok) {
-    console.error(`  バッチ ${i + 1}-${i + batch.length}: HTTP ${res.status}`);
-    continue;
+      if (!res.ok) {
+        console.error(`  ${batchLabel}: HTTP ${res.status} (試行${attempt})`);
+        await new Promise((r) => setTimeout(r, 3000 * attempt));
+        continue;
+      }
+
+      const result = (await res.json()) as { ingested: number };
+      totalIngested += result.ingested;
+      console.log(`  ${batchLabel}: ${result.ingested} 件投入 (累計 ${totalIngested})`);
+      success = true;
+      break;
+    } catch (e) {
+      console.warn(`  ${batchLabel} 失敗 (試行${attempt}): ${(e as Error).message}`);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 5000 * attempt));
+    }
   }
-
-  const result = (await res.json()) as { ingested: number };
-  totalIngested += result.ingested;
-  console.log(`  バッチ ${i + 1}-${i + batch.length}: ${result.ingested} 件投入 (累計 ${totalIngested})`);
-  await new Promise((r) => setTimeout(r, 500));
+  if (!success) console.error(`  ${batchLabel} をスキップ（3回失敗）`);
+  await new Promise((r) => setTimeout(r, 1000));
 }
 
 console.log(`\n✅ 完了: 合計 ${totalIngested} 件を投入`);
