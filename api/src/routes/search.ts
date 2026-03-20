@@ -27,10 +27,11 @@ async function generateMatchReason(query: string, researcher: Record<string, unk
 
 // POST /search — 企業ニーズで研究者を検索
 app.post("/", async (c) => {
-  const { query, limit = 5, explain = true, source } = await c.req.json<{
+  const { query, limit = 5, explain = true, explain_limit = 5, source } = await c.req.json<{
     query: string;
     limit?: number;
     explain?: boolean;
+    explain_limit?: number;
     source?: "openalex" | "kakenhi";
   }>();
 
@@ -48,12 +49,12 @@ app.post("/", async (c) => {
   });
 
   const matches = await Promise.all(
-    results.map(async (r) => {
+    results.map(async (r, idx) => {
       const base = {
         score: Math.round(r.score * 1000) / 1000,
         ...(r.payload as Record<string, unknown>),
       };
-      if (!explain) return base;
+      if (!explain || idx >= explain_limit) return base;
       const match_reason = await generateMatchReason(query, r.payload as Record<string, unknown>);
       return { ...base, match_reason };
     })
